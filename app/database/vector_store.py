@@ -22,7 +22,7 @@ collection = chroma_client.get_or_create_collection(
 def seed_vector_db():
     """
     Reads the filtered Lagos auto repair shop JSON file and populates ChromaDB.
-    This skips automatically if data is already present to prevent duplicates.
+    and will skip automatically if data is already present to prevent duplicates.
     """
     print("Checking Vector Database status...")
     
@@ -36,7 +36,6 @@ def seed_vector_db():
     if not os.path.exists(settings.YELP_DATA_PATH):
         print(f"Error: Seed file missing at {settings.YELP_DATA_PATH}. Run extract.py first!")
         return
-
     print("Seeding ChromaDB Vector Database from filtered dataset...")
     
     ids = []
