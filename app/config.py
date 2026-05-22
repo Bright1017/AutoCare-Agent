@@ -1,4 +1,5 @@
 import os
+from typing import Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
@@ -8,10 +9,15 @@ class Settings(BaseSettings):
     PORT: int = 8000
     
     # --- LLM ENGINE SETTINGS ---
-    # The OpenAI API key will be pulled automatically from your .env file
-    OPENAI_API_KEY: str
-    LLM_MODEL: str = "gpt-4-turbo"
-    TEMPERATURE: float = 0.6
+    # Made Optional so Pydantic doesn't throw a fit when using free alternatives like Groq
+    OPENAI_API_KEY: Optional[str] = None
+    
+    # Groq Key so your agent environment recognizes it
+    GROQ_API_KEY: Optional[str] = None
+    
+    # Updated default to Groq's high-speed open-source Llama model
+    LLM_MODEL: str = "llama-3.1-8b-instant"
+    TEMPERATURE: float = 0.2
     
     # --- DATABASE CONFIGURATIONS ---
     # Path where ChromaDB will persist its vector collections locally
@@ -22,7 +28,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env", 
         env_file_encoding="utf-8",
-        extra="ignore" # Prevents crashing if extra variables exist in the system
+        extra="ignore" # Ignore any extra environment variables safely
     )
 
 # Instantiate a singleton settings object to import across modules
