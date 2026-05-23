@@ -4,17 +4,30 @@ import chromadb
 from chromadb.utils import embedding_functions
 from app.config import settings
 
-# 1. Initialize the ChromaDB persistent client using settings paths
-persist_dir = getattr(settings, "CHROMA_PERSIST_DIRECTORY", getattr(settings, "CHROMA_DB_PATH", "./chroma_db"))
-chroma_client = chromadb.PersistentClient(path=persist_dir)
+# 1. Initialize Dual-Mode Connection (Dynamically switches to Chroma Cloud)
+cloud_key = os.getenv("CHROMA_API_KEY")
+tenant = os.getenv("CHROMA_TENANT")
+database = os.getenv("CHROMA_DATABASE", "default_database")
 
-# 2. Configure a FREE, LOCAL Embedding Function (Bypasses OpenAI completely!)
-# This model downloads a small mathematical matrix locally and computes vectors on your CPU
+if cloud_key and tenant:
+    print("Connecting to secure serverless Chroma Cloud instance...")
+    chroma_client = chromadb.CloudClient(
+        api_key=cloud_key,
+        tenant=tenant,
+        database=database
+    )
+else:
+    print("Cloud keys missing or incomplete. Defaulting to local persistent storage...")
+    persist_dir = getattr(settings, "CHROMA_PERSIST_DIRECTORY", getattr(settings, "CHROMA_DB_PATH", "./chroma_db"))
+    chroma_client = chromadb.PersistentClient(path=persist_dir)
+
+# 2. Configure your Embedding Function
 local_ef = embedding_functions.SentenceTransformerEmbeddingFunction(
     model_name="all-MiniLM-L6-v2"
 )
 
-# 3. Create or get our specialized Lagos auto shops vector collection using the free engine
+# 3. Create or get our specialized Lagos auto shops vector collection
+# Keeping the name clean and distinct across your system
 collection = chroma_client.get_or_create_collection(
     name="lagos_mechanic_catalog_local",
     embedding_function=local_ef
@@ -44,16 +57,13 @@ def seed_vector_db():
     metadatas = []
 
     with open(settings.YELP_DATA_PATH, "r", encoding="utf-8", errors="ignore") as f:
-        # Check if the file is a standard JSON list or line-by-line JSON (JSON Lines)
         content = f.read().strip()
         
         try:
-            # Try parsing as a standard JSON array list first
             shops = json.loads(content)
             for shop in shops:
                 _process_shop(shop, ids, documents, metadatas)
         except json.JSONDecodeError:
-            # Fallback to your original line-by-line JSON parsing if it's a JSONL file
             f.seek(0)
             for line in f:
                 if not line.strip():
@@ -61,8 +71,8 @@ def seed_vector_db():
                 shop = json.loads(line)
                 _process_shop(shop, ids, documents, metadatas)
 
-    # Inserting data by batches into ChromaDB
-    batch_size = 100  # Smaller batches for local memory safety
+    # Inserting data by batches into ChromaDB (Safe for network transfers)
+    batch_size = 100  
     for i in range(0, len(ids), batch_size):
         collection.add(
             ids=ids[i:i+batch_size],
@@ -81,11 +91,9 @@ def _process_shop(shop, ids, documents, metadatas):
     address = shop.get("address", "Lagos, Nigeria")
     stars = float(shop.get("stars", 0.0))
     
-    # Safely handle list categories vs string categories
     cats = shop.get("categories", "Auto Repair")
     categories = ", ".join(cats) if isinstance(cats, list) else str(cats)
     
-    # Rich semantic document description string for the Local embedding engine
     semantic_document = (
         f"Mechanic Shop: {name}. Located at: {address}. "
         f"Services and Specialities: {categories}. Historical Yelp Rating: {stars} stars."
@@ -114,7 +122,6 @@ def query_mechanics(query_text: str, n_results: int = 3) -> list:
         
         formatted_shops = []
         
-        # Unpacking the deep nested arrays that ChromaDB will return
         if results and results.get("documents") and results["documents"][0]:
             documents = results["documents"][0]
             metadatas = results["metadatas"][0]
