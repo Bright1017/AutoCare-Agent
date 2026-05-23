@@ -1,0 +1,17 @@
+# Core API Web Framework
+fastapi>=0.110.0
+uvicorn>=0.28.0
+
+# Configuration & Data Validation
+pydantic>=2.6.0
+pydantic-settings>=2.2.0
+
+# Vector Database Setup
+chromadb>=0.4.24
+
+# AI Agent Connectors (Configured for Groq/Ollama)
+openai>=1.13.0
+
+# Free Local Embedding Engine Infrastructure
+sentence-transformers>=3.0.0
+torch>=2.2.0
