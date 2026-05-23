@@ -3,11 +3,15 @@ import os
 import chromadb
 from chromadb.utils import embedding_functions
 from app.config import settings
+from dotenv import load_dotenv
+
+# Force load the .env file attributes into system environment memory
+load_dotenv()
 
 # 1. Initialize Dual-Mode Connection (Dynamically switches to Chroma Cloud)
 cloud_key = os.getenv("CHROMA_API_KEY")
 tenant = os.getenv("CHROMA_TENANT")
-database = os.getenv("CHROMA_DATABASE", "default_database")
+database = os.getenv("CHROMA_DATABASE", "AutoCare-Agent-Database")
 
 if cloud_key and tenant:
     print("Connecting to secure serverless Chroma Cloud instance...")
@@ -27,7 +31,6 @@ local_ef = embedding_functions.SentenceTransformerEmbeddingFunction(
 )
 
 # 3. Create or get our specialized Lagos auto shops vector collection
-# Keeping the name clean and distinct across your system
 collection = chroma_client.get_or_create_collection(
     name="lagos_mechanic_catalog_local",
     embedding_function=local_ef
