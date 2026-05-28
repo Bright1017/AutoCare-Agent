@@ -11,7 +11,8 @@ client = OpenAI(
     api_key=settings.GROQ_API_KEY
 )
 
-def generate_auto_recommendation(vehicle_issue: str, user_mood: str) -> str:
+#  Accepts the user's vehicle issue, mood, and location sector to generate a personalized auto repair recommendation plan.
+def generate_auto_recommendation(vehicle_issue: str, user_mood: str, sector_name: str) -> str:
     """
     Executes the full pipeline:
     1. Fetches candidate shops from ChromaDB.
@@ -20,14 +21,14 @@ def generate_auto_recommendation(vehicle_issue: str, user_mood: str) -> str:
     """
     print(f"Searching database for matches matching: '{vehicle_issue}'...")
     
-    # 1. Fetch relevant mechanic candidates from our ChromaDB vector catalog
+    # 1. Fetch relevant mechanic candidates from ChromaDB vector catalog
     raw_candidates = query_mechanics(query_text=vehicle_issue, n_results=3)
     
     if not raw_candidates:
-        return "Abeg, I couldn't find any mechanics matching that description in our database right now."
+        return f"Abeg no vex, I no find any mechanics matching that description near {sector_name} right now."
 
     # 2. TASK A: REASONING & SIMULATION PHASE
-    # Loop through each mechanic and let the Digital Twin evaluate it
+    # loops through each mechanic and let the Digital Twin evaluate it
     evaluated_candidates_text = ""
     
     print("Running Digital User behavioral simulation on candidate shops...")
@@ -53,16 +54,17 @@ def generate_auto_recommendation(vehicle_issue: str, user_mood: str) -> str:
         )
 
     # 3. TASK B: MULTI-TURN REASONING & RECOMMENDATION
-    # Feed the digital twin's direct critiques straight into the final planner template
+    # template final prompt with all the candidate evaluations and situational context for the concierge agent
     final_prompt = RECOMMENDER_AGENT_TEMPLATE.format(
         user_mood=user_mood,
         vehicle_issue=vehicle_issue,
+        sector_name=sector_name,
         retrieved_candidates=evaluated_candidates_text
     )
 
     try:
         response = client.chat.completions.create(
-            model=settings.LLM_MODEL,  # Points cleanly to llama3-8b-8192 via config
+            model=settings.LLM_MODEL,
             temperature=settings.TEMPERATURE,
             messages=[
                 {
