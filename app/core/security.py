@@ -3,10 +3,10 @@ from fastapi import HTTPException, Security, status
 from fastapi.security import APIKeyHeader
 from app.config import settings
 
-# Define the name of the header the client must send
+# Define the name of the API header the client must send
 API_KEY_NAME = "AutoCare"
 
-# Initialize the header extractor. auto_error=False lets us handle the error gracefully ourselves.
+# Initialize the header extractor. auto_error=False lets and handles the error gracefully ourselves.
 api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
 
 def validate_api_key(api_key: str = Security(api_key_header)):
@@ -14,10 +14,10 @@ def validate_api_key(api_key: str = Security(api_key_header)):
     Pragmatic API Key validation dependency.
     Intercepts the request, checks the API-Key header, and blocks unauthorized traffic.
     """
-    # ADJUSTMENT: Swapped os.getenv for settings.APP_API_KEY so Pydantic safely serves it
+    # i can also implement additional logic here, such as rate limiting, logging unauthorized attempts, or even integrating with a more complex auth system if needed in the future.
     expected_key = settings.APP_API_KEY
     
-    # Safety Check: If you forgot to configure the key in your .env or Railway, sound the alarm
+    # this will catch the case where the server is misconfigured and the master API key is not set, preventing any access to the API and prompting the admin to fix the configuration. It also prevents a potential security loophole where an empty or null key might be accepted if not properly checked.
     if not expected_key:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
