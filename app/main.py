@@ -1,19 +1,17 @@
 import os
 from fastapi import FastAPI, HTTPException, Body, Security 
 from fastapi.middleware.cors import CORSMiddleware
-from mangum import Mangum  
 from app.config import settings
-from app.lifecycles import lifespan
 from app.agents.recommender import generate_auto_recommendation
 from app.core.security import validate_api_key
 from app.core.cache import AutoCareCacheService, generate_cache_key
 from app.core.location import identify_closest_lagos_sector
 
+# dotenv is loaded in app/config.py, so we can directly access settings from there
 app = FastAPI(
     title="AutoCare Agent Backend",
     description="Multi-Agent Simulation & Vector Recommendation Engine for Auto Care in Lagos",
-    version="1.0.0",
-    lifespan=lifespan
+    version="1.0.0"
 )
 
 # Global CORS Policy Setup
@@ -74,7 +72,7 @@ async def analyze_and_recommend(
             sector_name=sector_name
         )
         
-        # just-in-time cache population for future identical requests, ensuring the next user gets an instant response if they have the same issue in the same area
+        # just-in-time cache population for future identical requests
         AutoCareCacheService.set(cache_key, recommendation_plan)
         
         return {
@@ -86,15 +84,12 @@ async def analyze_and_recommend(
         }
         
     except Exception as e:
-        print(f"i don critical error sending request to the agents: {e}")
+        print(f"Critical error sending request to the agents: {e}")
         raise HTTPException(
             status_code=500, 
-            detail="i don encountered wahala while compiling your recommendation plan. Please check am again later."
+            detail="i encountered one wahala while compiling your recommendation plan. Please try again later."
         )
 
 @app.get("/", summary="Root health status check")
 def read_root():
     return {"message": "Welcome To AutoCare, Your Go-To Auto Repair Agent in Lagos!"}
-
-# Expose the global handler bridge wrapper targeted by vercel.json
-handler = Mangum(app)
