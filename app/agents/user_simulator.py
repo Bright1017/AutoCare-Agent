@@ -58,5 +58,5 @@ def simulate_user_review(persona_mood: str, vehicle_issue: str, shop_data: dict)
         # Fallback graceful payload to ensure the FastAPI pipeline never crashes during evaluation
         return {
             "predicted_rating": 3.0,
-            "simulated_review": f"Abeg, I couldn't process this evaluation smoothly due to a system glitch. But based on historical data, this shop averages {shop_data.get('stars')} stars."
+            "simulated_review": f"Abeg, i no process this evaluation smoothly due to a system glitch. But based on how the shop take get historical data, this shop averages {shop_data.get('stars')} stars."
         }
