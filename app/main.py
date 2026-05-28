@@ -1,7 +1,7 @@
-# app/main.py
 import os
 from fastapi import FastAPI, HTTPException, Body, Security 
 from fastapi.middleware.cors import CORSMiddleware
+from mangum import Mangum  
 from app.config import settings
 from app.lifecycles import lifespan
 from app.agents.recommender import generate_auto_recommendation
@@ -54,7 +54,7 @@ async def analyze_and_recommend(
     # 3. High-speed RAM Interceptor Check
     cached_plan = AutoCareCacheService.get(cache_key)
     if cached_plan:
-        print(f"⚡ [CACHE HIT] Serving instant resolution blueprint for: {cache_key}")
+        print(f"Serving instant resolution blueprint for: {cache_key}")
         return {
             "status": "success",
             "cached": True,
@@ -65,16 +65,16 @@ async def analyze_and_recommend(
 
     # 4. Fallback execution on cache miss
     try:
-        print(f"[CACHE MISS] Computing live recommendations bounded to sector: {sector_name}")
+        print(f"Computing live recommendations bounded to sector: {sector_name}")
         
-        # 💡 FIXED: Now cleanly passing all three arguments your agent function requires!
+        # generate the recommendation plan through the multi-agent pipeline
         recommendation_plan = generate_auto_recommendation(
             vehicle_issue=complaint,
             user_mood="Anxious/Stressed",
             sector_name=sector_name
         )
         
-        # Commit to the LRU Cache Tray
+        # just-in-time cache population for future identical requests, ensuring the next user gets an instant response if they have the same issue in the same area
         AutoCareCacheService.set(cache_key, recommendation_plan)
         
         return {
@@ -86,12 +86,15 @@ async def analyze_and_recommend(
         }
         
     except Exception as e:
-        print(f"Critical error sending request to the agents: {e}")
+        print(f"i don critical error sending request to the agents: {e}")
         raise HTTPException(
             status_code=500, 
-            detail="Wahala encountered while compiling your recommendation plan. Please try again."
+            detail="i don encountered wahala while compiling your recommendation plan. Please check am again later."
         )
 
 @app.get("/", summary="Root health status check")
 def read_root():
     return {"message": "Welcome To AutoCare, Your Go-To Auto Repair Agent in Lagos!"}
+
+# Expose the global handler bridge wrapper targeted by vercel.json
+handler = Mangum(app)
