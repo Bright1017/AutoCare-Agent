@@ -1,12 +1,13 @@
+# app/main.py
 import os
-from fastapi import FastAPI, HTTPException, Depends, Body, Security 
+from fastapi import FastAPI, HTTPException, Body, Security 
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.openapi.utils import get_openapi
 from app.config import settings
 from app.lifecycles import lifespan
 from app.agents.recommender import generate_auto_recommendation
 from app.core.security import validate_api_key
-
+from app.core.cache import AutoCareCacheService, generate_cache_key
+from app.core.location import identify_closest_lagos_sector
 
 app = FastAPI(
     title="AutoCare Agent Backend",
@@ -15,7 +16,7 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# 2. Global CORS Policy Setup
+# Global CORS Policy Setup
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 app.add_middleware(
     CORSMiddleware,
@@ -24,38 +25,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# 3. Injecting API Key Input Box into Swagger Docs natively
-def custom_openapi():
-    """Generates a custom OpenAPI schema adding the API-Key form to Swagger."""
-    if app.openapi_schema:
-        return app.openapi_schema
-        
-    openapi_schema = get_openapi(
-        title=app.title,
-        version=app.version,
-        description=app.description,
-        routes=app.routes,
-    )
-    
-    # Define the security scheme structure natively
-    openapi_schema["components"]["securitySchemes"] = {
-        "ApiKeyAuth": {
-            "type": "apiKey",
-            "in": "header",
-            "name": "AutoCare",
-            "description": "Enter your application secret key to unlock the endpoints."
-        }
-    }
-    
-    # This array forces Swagger to attach the key to the requests when made
-    openapi_schema["security"] = [{"ApiKeyAuth": []}]
-    
-    app.openapi_schema = openapi_schema
-    return openapi_schema
-
-app.openapi = custom_openapi
-
 
 # Core Operational Endpoint
 @app.post(
@@ -69,19 +38,49 @@ async def analyze_and_recommend(
         description="The raw vehicle issue or text complaint from the user.",
         example="My engine is making a loud knocking sound and overheating, and I am stressed out."
     ),
-    api_key: str = Security(validate_api_key) 
+    latitude: float = Body(0.0, embed=True),
+    longitude: float = Body(0.0, embed=True),
+    authenticated_key: str = Security(validate_api_key) 
 ):
     if not complaint.strip():
         raise HTTPException(status_code=400, detail="Complaint text cannot be empty, abeg.")
 
+    # 1. Spatial router mapping (Maps coordinates to Yaba, Lekki Phase 1, or Ikeja)
+    sector_name, _ = identify_closest_lagos_sector(latitude, longitude)
+
+    # 2. Key Generation for Cache tracking
+    cache_key = generate_cache_key("recommend", vehicle_issue=complaint, sector=sector_name)
+    
+    # 3. High-speed RAM Interceptor Check
+    cached_plan = AutoCareCacheService.get(cache_key)
+    if cached_plan:
+        print(f"⚡ [CACHE HIT] Serving instant resolution blueprint for: {cache_key}")
+        return {
+            "status": "success",
+            "cached": True,
+            "sector_routed": sector_name,
+            "user_issue_processed": complaint,
+            "recommendation": cached_plan
+        }
+
+    # 4. Fallback execution on cache miss
     try:
+        print(f"[CACHE MISS] Computing live recommendations bounded to sector: {sector_name}")
+        
+        # 💡 FIXED: Now cleanly passing all three arguments your agent function requires!
         recommendation_plan = generate_auto_recommendation(
             vehicle_issue=complaint,
-            user_mood="Anxious/Stressed"  
+            user_mood="Anxious/Stressed",
+            sector_name=sector_name
         )
+        
+        # Commit to the LRU Cache Tray
+        AutoCareCacheService.set(cache_key, recommendation_plan)
         
         return {
             "status": "success",
+            "cached": False,
+            "sector_routed": sector_name,
             "user_issue_processed": complaint,
             "recommendation": recommendation_plan
         }
@@ -95,4 +94,4 @@ async def analyze_and_recommend(
 
 @app.get("/", summary="Root health status check")
 def read_root():
-    return {"message": "AutoCare Agent Backend is running active on top gear!"}
+    return {"message": "Welcome To AutoCare, Your Go-To Auto Repair Agent in Lagos!"}
