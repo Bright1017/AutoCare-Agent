@@ -1,10 +1,12 @@
 # Core API Web Framework
 fastapi>=0.110.0
 uvicorn>=0.28.0
+mangum>=0.17.0
 
-# Configuration & Data Validation
+# Configuration, Environment, & Data Validation
 pydantic>=2.6.0
 pydantic-settings>=2.2.0
+python-dotenv>=1.0.1
 
 # Lightweight Vector Database Cloud Client
 chromadb>=0.4.24
