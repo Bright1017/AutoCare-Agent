@@ -1,7 +1,7 @@
 import os
 from fastapi import FastAPI, HTTPException, Body, Security 
 from fastapi.middleware.cors import CORSMiddleware
-from config import settings
+from app.config import settings
 from app.agents.recommender import generate_auto_recommendation
 from app.core.security import validate_api_key
 from app.core.cache import AutoCareCacheService, generate_cache_key
