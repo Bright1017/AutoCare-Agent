@@ -27,6 +27,21 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore" 
     )
+    # pydantic's BaseSettings will automatically read the .env file and populate these fields based on the keys defined in the .env. The 'extra="ignore"' setting allows the application to ignore any additional environment variables that are not explicitly defined in this Settings class, preventing potential errors from unexpected variables.
+    @property
+    def IS_GROQ(self) -> bool:
+        model = self.LLM_MODEL.lower()
+        return "llama" in model or "groq" in model or "mixtral" in model
+
+    @property
+    def LLM_API_KEY(self) -> Optional[str]:
+        return self.GROQ_API_KEY if self.IS_GROQ else self.OPENAI_API_KEY
+
+    @property
+    def LLM_BASE_URL(self) -> Optional[str]:
+        if self.IS_GROQ:
+            return "https://api.groq.com/openai/v1"
+        return None
 
 # Instantiate a singleton settings object to import across modules
 settings = Settings()
