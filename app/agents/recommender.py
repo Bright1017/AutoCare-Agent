@@ -5,13 +5,13 @@ from app.database.vector_store import query_mechanics
 from app.agents.user_simulator import simulate_user_review
 from app.agents.templates import RECOMMENDER_AGENT_TEMPLATE
 
-# Initialize the client pointed directly at Groq's open-source API cluster
+
+# This prevents 401 mismatches when alternating between Groq (Llama) and OpenAI (GPT) models.
 client = OpenAI(
-    base_url="https://api.groq.com/openai/v1",
-    api_key=settings.GROQ_API_KEY
+    base_url=settings.LLM_BASE_URL,
+    api_key=settings.LLM_API_KEY
 )
 
-#  Accepts the user's vehicle issue, mood, and location sector to generate a personalized auto repair recommendation plan.
 def generate_auto_recommendation(vehicle_issue: str, user_mood: str, sector_name: str) -> str:
     """
     Executes the full pipeline:
@@ -28,7 +28,7 @@ def generate_auto_recommendation(vehicle_issue: str, user_mood: str, sector_name
         return f"Abeg no vex, I no find any mechanics matching that description near {sector_name} right now."
 
     # 2. TASK A: REASONING & SIMULATION PHASE
-    # loops through each mechanic and let the Digital Twin evaluate it
+    # Loops through each mechanic and lets the Digital Twin evaluate it
     evaluated_candidates_text = ""
     
     print("Running Digital User behavioral simulation on candidate shops...")
@@ -54,7 +54,7 @@ def generate_auto_recommendation(vehicle_issue: str, user_mood: str, sector_name
         )
 
     # 3. TASK B: MULTI-TURN REASONING & RECOMMENDATION
-    # template final prompt with all the candidate evaluations and situational context for the concierge agent
+    # Template final prompt with all the candidate evaluations and situational context for the concierge agent
     final_prompt = RECOMMENDER_AGENT_TEMPLATE.format(
         user_mood=user_mood,
         vehicle_issue=vehicle_issue,
@@ -84,5 +84,5 @@ def generate_auto_recommendation(vehicle_issue: str, user_mood: str, sector_name
         print(f"Error executing Recommender Agent: {e}")
         return (
             "E sun mi o! I hit a temporary hitch while analyzing the final recommendations. "
-            "Please check your network connection or API keys, and let's try sorting this out again sharp-sharp!"
+            "Please check your network connection or API keys, and let's try sorting this out again sharply!"
         )
