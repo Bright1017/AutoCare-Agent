@@ -3,10 +3,10 @@ from openai import OpenAI
 from app.config import settings
 from app.agents.templates import USER_SIMULATOR_TEMPLATE
 
-# Redirect the simulation client to Groq's high-speed cloud engine endpoint
+# Instantiated dynamically using properties from your config layer. This ensures that if you switch LLM providers or models in .env or config, the User Simulator will adapt without any hardcoded values, maintaining the modularity and flexibility of your architecture.
 client = OpenAI(
-    base_url="https://api.groq.com/openai/v1",
-    api_key=settings.GROQ_API_KEY
+    base_url=settings.LLM_BASE_URL,
+    api_key=settings.LLM_API_KEY
 )
 
 def simulate_user_review(persona_mood: str, vehicle_issue: str, shop_data: dict) -> dict:
@@ -32,7 +32,7 @@ def simulate_user_review(persona_mood: str, vehicle_issue: str, shop_data: dict)
     try:
         # Request a JSON-enforced response from the model
         response = client.chat.completions.create(
-            model=settings.LLM_MODEL,  # Dynamically points to llama3-8b-8192 via config
+            model=settings.LLM_MODEL,  # Dynamically points to your configured active model
             temperature=settings.TEMPERATURE,
             response_format={"type": "json_object"},  # Hard enforces a valid JSON return
             messages=[
