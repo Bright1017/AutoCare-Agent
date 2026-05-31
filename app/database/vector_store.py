@@ -88,12 +88,12 @@ def seed_vector_db():
 
 
 def _process_shop(shop, ids, documents, metadatas):
-    """Helper extraction utility function matching your business schema logic"""
+    """Helper extraction utility function matching business schema logic"""
     shop_id = shop.get("business_id", f"shop_{len(ids)}")
     name = shop.get("name", "Unknown Shop")
     address = shop.get("address", "Lagos, Nigeria")
     stars = float(shop.get("stars", 0.0))
-    sector = shop.get("location_sector", "Ikeja") # Capture our custom ingestion router key!
+    sector = shop.get("location_sector", "Ikeja") # Captures the custom ingestion router key!
     
     cats = shop.get("categories", "Auto Repair")
     categories = ", ".join(cats) if isinstance(cats, list) else str(cats)
@@ -116,7 +116,7 @@ def _process_shop(shop, ids, documents, metadatas):
 def query_mechanics(query_text: str, location_sector: str = None, n_results: int = 3) -> list:
     """Performs an isolated semantic vector search based on user neighborhood context."""
     try:
-        # Build strict location query dict matching your UI inputs
+        # dynamically build the query parameters based on the presence of the location_sector filter, ensuring that the core semantic search functionality remains intact while allowing for enhanced contextual relevance when the sector information is provided by the user. This design allows for flexible querying that can adapt to both general and location-specific search needs without compromising the integrity of the vector search results. The use of a conditional structure to append the 'where' clause only when the location_sector is specified ensures that we maintain optimal performance and relevance in our search results, catering to a wider range of user queries while still leveraging the powerful capabilities of ChromaDB's semantic search. By structuring the query in this way, we can efficiently retrieve mechanic shop recommendations that are not only semantically relevant to the user's issue but also geographically pertinent, enhancing the overall user experience and satisfaction with our AutoCare-Agent service.
         query_kwargs = {"query_texts": [query_text], "n_results": n_results}
         
         if location_sector:
