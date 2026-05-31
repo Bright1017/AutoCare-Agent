@@ -4,57 +4,81 @@ from app.config import settings
 from app.database.vector_store import query_mechanics
 from app.agents.user_simulator import simulate_user_review
 from app.agents.templates import RECOMMENDER_AGENT_TEMPLATE
+from app.schemas.persona import TaskASimulationPayload, UserPersona
+from app.schemas.shop import MechanicShop
 
-
-# This prevents 401 mismatches when alternating between Groq (Llama) and OpenAI (GPT) models.
+# Instantiated dynamically using properties from your config layer.
 client = OpenAI(
     base_url=settings.LLM_BASE_URL,
     api_key=settings.LLM_API_KEY
 )
 
-def generate_auto_recommendation(vehicle_issue: str, user_mood: str, sector_name: str) -> str:
+def generate_auto_recommendation(vehicle_issue: str, user_mood: str, sector_name: str, user_name: str = "Driver") -> str:
     """
     Executes the full pipeline:
-    1. Fetches candidate shops from ChromaDB.
-    2. Runs Task A (Reasoning): Simulates the user twin's review & rating for each shop.
-    3. Runs Task B (Recommendation): Synthesizes those reviews to output a ranked action plan.
+    1. Fetches candidate shops from ChromaDB based on the vehicle issue.
+    2. Runs Task A (Digital Twin): Evaluates each shop using structured schema payloads.
+    3. Runs Task B (Recommendation Planner): Synthesizes user evaluations into a Lagos-localized blueprint.
     """
-    print(f"Searching database for matches matching: '{vehicle_issue}'...")
+    print(f"Searching for mechanics matches: '{vehicle_issue}' in {sector_name} Axis...")
     
     # 1. Fetch relevant mechanic candidates from ChromaDB vector catalog
     raw_candidates = query_mechanics(query_text=vehicle_issue, n_results=3)
     
     if not raw_candidates:
-        return f"Abeg no vex, I no find any mechanics matching that description near {sector_name} right now."
+        return f"NO VEX! I no find any mechanics matching that description near the {sector_name} Axis right now."
 
-    # 2. TASK A: REASONING & SIMULATION PHASE
-    # Loops through each mechanic and lets the Digital Twin evaluate it
+    # 2. REASONING & SIMULATION PHASE
     evaluated_candidates_text = ""
-    
     print("Running Digital User behavioral simulation on candidate shops...")
+    
     for idx, shop in enumerate(raw_candidates, 1):
-        # Trigger the user simulation function
-        simulation_result = simulate_user_review(
-            persona_mood=user_mood,
-            vehicle_issue=vehicle_issue,
-            shop_data=shop
-        )
-        
-        predicted_rating = simulation_result.get("predicted_rating", 3.0)
-        simulated_review = simulation_result.get("simulated_review", "No feedback generated.")
-        
-        # Compile this simulated critique into a text block for the final recommender
-        evaluated_candidates_text += (
-            f"{idx}. {shop.get('name', 'Unknown Shop')}\n"
-            f"   - Historical Yelp Stars: {shop.get('stars', 'N/A')}\n"
-            f"   - Specialties: {shop.get('categories', 'General Auto Repair')}\n"
-            f"   - DIGITAL USER ANALYSIS & FEELINGS:\n"
-            f"     * Predicted Rating from User Profile: {predicted_rating}/5.0\n"
-            f"     * Simulated User Review: \"{simulated_review}\"\n\n"
-        )
+        try:
+            # Enforce data parsing into the explicit MechanicShop Pydantic model
+            # This handles it smoothly whether your query returns a dictionary or an object
+            if isinstance(shop, dict):
+                shop_obj = MechanicShop(**shop)
+            else:
+                shop_obj = shop
 
-    # 3. TASK B: MULTI-TURN REASONING & RECOMMENDATION
-    # Template final prompt with all the candidate evaluations and situational context for the concierge agent
+            # Reconstruct the dynamic driver profile state container
+            user_persona_obj = UserPersona(
+                name=user_name,
+                persona_mood=user_mood,
+                vehicle_issue=vehicle_issue,
+                location=f"{sector_name} Axis, Lagos"
+            )
+
+            # Package both inputs inside the strict Task A validation payload contract
+            simulation_payload = TaskASimulationPayload(
+                user_persona=user_persona_obj,
+                shop_data=shop_obj
+            )
+            
+            # Execute the standalone simulation agent function using the updated signature
+            simulation_result = simulate_user_review(simulation_payload)
+            
+            predicted_rating = simulation_result.get("predicted_rating", 3.0)
+            simulated_review = simulation_result.get("simulated_review", "No feedback generated.")
+            
+            # Compile this simulated critique cleanly into a text block using object properties
+            evaluated_candidates_text += (
+                f"{idx}. {shop_obj.name}\n"
+                f"   - Network Rating Score: {shop_obj.stars} / 5.0\n"
+                f"   - Core Specializations: {shop_obj.categories}\n"
+                f"   - DIGITAL TWIN SIMULATION FEEDBACK:\n"
+                f"     * Predicted Choice Rating: {predicted_rating}/5.0\n"
+                f"     * Simulated Local Review: \"{simulated_review}\"\n\n"
+            )
+        except Exception as loop_err:
+            print(f"Skipping malformed workshop entity during simulation loop: {loop_err}")
+            continue
+
+    if not evaluated_candidates_text:
+        return f"NO VEX! We couldn't safely parse or simulate any available mechanics around the {sector_name} Axis."
+
+    # 3. MULTI-TURN REASONING & RECOMMENDATION
+    # Formats the final template prompt with all the combined contextual strings
     final_prompt = RECOMMENDER_AGENT_TEMPLATE.format(
         user_mood=user_mood,
         vehicle_issue=vehicle_issue,
@@ -81,8 +105,8 @@ def generate_auto_recommendation(vehicle_issue: str, user_mood: str, sector_name
         return response.choices[0].message.content
 
     except Exception as e:
-        print(f"Error executing Recommender Agent: {e}")
+        print(f"Error executing Recommender Agent multi-turn planner: {e}")
         return (
-            "E sun mi o! I hit a temporary hitch while analyzing the final recommendations. "
-            "Please check your network connection or API keys, and let's try sorting this out again sharply!"
+            "NO VEX! I hit a temporary hitch while analyzing the final recommendations. "
+            "Don't worry, our tracking backend is active. Let's try refreshing this request sharply!"
         )
