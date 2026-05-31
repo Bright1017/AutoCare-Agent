@@ -1,5 +1,3 @@
-# app/schemas/shop.py
-
 from pydantic import BaseModel, Field
 from typing import Optional, List
 
@@ -16,4 +14,4 @@ class MechanicShop(BaseModel):
     review_context: str = Field(..., description="Aggregated text chunks or reviews used for semantic matching")
 
     class Config:
-        from_attributes = True  # Allows compatibility if you map this from ORM or database objects later
+        from_attributes = True
