@@ -14,8 +14,8 @@ class Settings(BaseSettings):
     # --- LLM ENGINE SETTINGS ---
     OPENAI_API_KEY: Optional[str] = None
     GROQ_API_KEY: Optional[str] = None
-    LLM_MODEL: str = "llama3-8b-8192"
-    TEMPERATURE: float = 0.2
+    LLM_MODEL: str = "llama-3.1-8b-instant"
+    TEMPERATURE: float=0.2
     
     # --- DATABASE CONFIGURATIONS ---
     CHROMA_PERSIST_DIRECTORY: str = "./data/chroma_db"
