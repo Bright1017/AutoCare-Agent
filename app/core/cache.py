@@ -59,8 +59,7 @@ class AutoCareCacheService:
     @classmethod
     def inspect_diagnostics(cls) -> dict:
         """
-        Helper to print cache efficiency stats in your terminal logs.
-        Perfect for demonstrating production-level awareness to the hackathon judges!
+        Helper to print cache efficiency stats in the terminal logs.
         """
         engine_stats = _lookup_lru_engine.cache_info()
         return {
