@@ -7,7 +7,7 @@ from app.agents.templates import RECOMMENDER_AGENT_TEMPLATE
 from app.schemas.persona import TaskASimulationPayload, UserPersona
 from app.schemas.shop import MechanicShop
 
-# Instantiated dynamically using properties from your config layer.
+# Instantiated dynamically using properties from config layer.
 client = OpenAI(
     base_url=settings.LLM_BASE_URL,
     api_key=settings.LLM_API_KEY
@@ -17,8 +17,8 @@ def generate_auto_recommendation(vehicle_issue: str, user_mood: str, sector_name
     """
     Executes the full pipeline:
     1. Fetches candidate shops from ChromaDB based on the vehicle issue.
-    2. Runs Task A (Digital Twin): Evaluates each shop using structured schema payloads.
-    3. Runs Task B (Recommendation Planner): Synthesizes user evaluations into a Lagos-localized blueprint.
+    2. Evaluates each shop using structured schema payloads.
+    3. Synthesizes user evaluations into a Lagos-localized blueprint.
     """
     print(f"Searching for mechanics matches: '{vehicle_issue}' in {sector_name} Axis...")
     
@@ -26,7 +26,7 @@ def generate_auto_recommendation(vehicle_issue: str, user_mood: str, sector_name
     raw_candidates = query_mechanics(query_text=vehicle_issue, n_results=3)
     
     if not raw_candidates:
-        return f"NO VEX! I no find any mechanics matching that description near the {sector_name} Axis right now."
+        return f"Apologies! I wasn't able to find any mechanics matching that description near the {sector_name} Axis right now."
 
     # 2. REASONING & SIMULATION PHASE
     evaluated_candidates_text = ""
@@ -35,7 +35,7 @@ def generate_auto_recommendation(vehicle_issue: str, user_mood: str, sector_name
     for idx, shop in enumerate(raw_candidates, 1):
         try:
             # Enforce data parsing into the explicit MechanicShop Pydantic model
-            # This handles it smoothly whether your query returns a dictionary or an object
+            # This handles it smoothly whether query returns a dictionary or an object
             if isinstance(shop, dict):
                 shop_obj = MechanicShop(**shop)
             else:
@@ -46,10 +46,10 @@ def generate_auto_recommendation(vehicle_issue: str, user_mood: str, sector_name
                 name=user_name,
                 persona_mood=user_mood,
                 vehicle_issue=vehicle_issue,
-                location=f"{sector_name} Axis, Lagos"
+                location=f"{sector_name} Axis, Lagos State, Nigeria"
             )
 
-            # Package both inputs inside the strict Task A validation payload contract
+            # Package both inputs inside the strict validation payload contract
             simulation_payload = TaskASimulationPayload(
                 user_persona=user_persona_obj,
                 shop_data=shop_obj
@@ -75,7 +75,7 @@ def generate_auto_recommendation(vehicle_issue: str, user_mood: str, sector_name
             continue
 
     if not evaluated_candidates_text:
-        return f"NO VEX! We couldn't safely parse or simulate any available mechanics around the {sector_name} Axis."
+        return f"Apologies! We couldn't safely parse or simulate any available mechanics around the {sector_name} Axis."
 
     # 3. MULTI-TURN REASONING & RECOMMENDATION
     # Formats the final template prompt with all the combined contextual strings
@@ -107,6 +107,6 @@ def generate_auto_recommendation(vehicle_issue: str, user_mood: str, sector_name
     except Exception as e:
         print(f"Error executing Recommender Agent multi-turn planner: {e}")
         return (
-            "NO VEX! I hit a temporary hitch while analyzing the final recommendations. "
-            "Don't worry, our tracking backend is active. Let's try refreshing this request sharply!"
+            "Apologies! I hit a temporary hitch while analyzing the final recommendations. "
+            "Let's try refreshing this request in a moment!"
         )
