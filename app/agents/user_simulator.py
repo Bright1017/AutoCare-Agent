@@ -4,7 +4,7 @@ from app.config import settings
 from app.agents.templates import USER_SIMULATOR_TEMPLATE
 from app.schemas.persona import TaskASimulationPayload  
 
-# Instantiated dynamically using properties from your config layer.
+# Instantiated dynamically using properties from config layer.
 client = OpenAI(
     base_url=settings.LLM_BASE_URL,
     api_key=settings.LLM_API_KEY
@@ -12,7 +12,7 @@ client = OpenAI(
 
 def simulate_user_review(payload: TaskASimulationPayload) -> dict:
     """
-    Executes Task A by spinning up the User's Digital Twin to evaluate a candidate mechanic shop.
+    Executes by spinning up the User's Digital Twin to evaluate a candidate mechanic shop.
     Accepts a strongly-typed TaskASimulationPayload object instead of raw primitives.
     """
     # Safely extract structured nested fields from Pydantic schemas
@@ -24,7 +24,7 @@ def simulate_user_review(payload: TaskASimulationPayload) -> dict:
     if isinstance(review_context, list):
         review_context = " ".join(review_context)
 
-    # Format the prompt template with clean property lookups from your schema models[cite: 1]
+    # Format the prompt template with clean property lookups from schema models
     formatted_prompt = USER_SIMULATOR_TEMPLATE.format(
         persona_mood=f"{persona.name} (acting as a driver who is {persona.persona_mood})",
         vehicle_issue=persona.vehicle_issue,
@@ -37,9 +37,9 @@ def simulate_user_review(payload: TaskASimulationPayload) -> dict:
     try:
         # Request a JSON-enforced response from the model
         response = client.chat.completions.create(
-            model=settings.LLM_MODEL,  # Dynamically points to configured active model
+            model=settings.LLM_MODEL,
             temperature=settings.TEMPERATURE,
-            response_format={"type": "json_object"},  # Hard enforces a valid JSON return
+            response_format={"type": "json_object"}, 
             messages=[
                 {
                     "role": "system", 
@@ -63,5 +63,5 @@ def simulate_user_review(payload: TaskASimulationPayload) -> dict:
         # Fallback graceful payload to ensure the FastAPI pipeline never crashes during evaluation
         return {
             "predicted_rating": 3.0,
-            "simulated_review": f"Abeg, i no process this evaluation smoothly due to a system glitch. But based on how {shop.name} take get historical data, this shop averages {shop.stars} stars."
+            "simulated_review": f"I didn't process this evaluation smoothly due to a system glitch. However, based on how {shop.name} takes historical data, this shop averages {shop.stars} stars."
         }
