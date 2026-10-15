@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: autocare-ai-site
+    runtime: static
+    branch: autocare-ai-render-site-20261015
+    buildCommand: ""
+    staticPublishPath: website
