@@ -10,6 +10,8 @@ class Settings(BaseSettings):
     
     # --- SECURITY SETTINGS ---
     APP_API_KEY: Optional[str] = None
+    SUPABASE_URL: Optional[str] = None
+    SUPABASE_ANON_KEY: Optional[str] = None
     
     # --- LLM ENGINE SETTINGS ---
     OPENAI_API_KEY: Optional[str] = None
