@@ -16,10 +16,12 @@
 <script>
 const SUPABASE_URL='https://riikxvssyacpotgxmrhs.supabase.co';
 const SUPABASE_ANON_KEY='sb_publishable_RdzzwB82RXjOKexUtJuvbg_4dnWjWFg';
-const authClient=window.supabase?.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
-const form=document.getElementById('loginForm'),statusBox=document.getElementById('status'),submitButton=document.getElementById('submitButton');
+const authClient=window.supabase&&window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+const form=document.getElementById('loginForm');
+const statusBox=document.getElementById('status');
+const submitButton=document.getElementById('submitButton');
 function setStatus(message,isError=false){statusBox.textContent=message;statusBox.classList.toggle('error',isError)}
-document.getElementById('togglePassword').addEventListener('click',event=>{const input=document.getElementById('password'),show=input.type==='password';input.type=show?'text':'password';event.currentTarget.textContent=show?'Hide':'Show';event.currentTarget.setAttribute('aria-label',show?'Hide password':'Show password')});
-form.addEventListener('submit',async event=>{event.preventDefault();if(!authClient){setStatus('Sign-in is temporarily unavailable. Please refresh and try again.',true);return}submitButton.disabled=true;submitButton.textContent='Logging in…';setStatus('');try{const email=document.getElementById('email').value.trim(),password=document.getElementById('password').value;const {error}=await authClient.auth.signInWithPassword({email,password});if(error)throw error;window.location.href='index.html'}catch(error){setStatus(error.message||'Unable to log in. Please check your details and try again.',true)}finally{submitButton.disabled=false;submitButton.innerHTML='Log in <span aria-hidden="true">→</span>'}});
-document.getElementById('forgotPassword').addEventListener('click',async()=>{if(!authClient){setStatus('Passwoif(!authClient)setStatus('Sign-in configuration could not be loaded. Please try again later.',true);
+document.getElementById('togglePassword').addEventListener('click',event=>{const input=document.getElementById('password');const show=input.type==='password';input.type=show?'text':'password';event.currentTarget.textContent=show?'Hide':'Show';event.currentTarget.setAttribute('aria-label',show?'Hide password':'Show password')});
+form.addEventListener('submit',async event=>{event.preventDefault();if(!authClient){setStatus('Sign-in is temporarily unavailable. Please refresh and try again.',true);return}submitButton.disabled=true;submitButton.textContent='Logging in…';setStatus('');try{const email=document.getElementById('email').value.trim();const password=document.getElementById('password').value;const {error}=await authClient.auth.signInWithPassword({email,password});if(error)throw error;window.location.href='index.html'}catch(error){setStatus(error.message||'Unable to log in. Please check your details and try again.',true)}finally{submitButton.disabled=false;submitButton.innerHTML='Log in <span aria-hidden="true">→</span>'}});
+if(!authClient)setStatus('Sign-in configuration could not be loaded. Please try again later.',true);
 </script></body></html>
