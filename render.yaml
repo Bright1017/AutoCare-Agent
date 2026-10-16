@@ -5,3 +5,29 @@ services:
     branch: autocare-ai-render-site-20261015
     buildCommand: ""
     staticPublishPath: website
+  - type: web
+    name: autocare-ai-recommendation-api
+    runtime: docker
+    plan: free
+    branch: autocare-ai-render-site-20261015
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /HOME
+    envVars:
+      - key: ALLOWED_ORIGINS
+        value: https://autocare-ai-site.onrender.com
+      - key: SUPABASE_URL
+        value: https://riikxvssyacpotgxmrhs.supabase.co
+      - key: SUPABASE_ANON_KEY
+        value: sb_publishable_RdzzwB82RXjOKexUtJuvbg_4dnWjWFg
+      - key: APP_API_KEY
+        generateValue: true
+      - key: GROQ_API_KEY
+        sync: false
+      - key: CHROMA_API_KEY
+        sync: false
+      - key: CHROMA_TENANT
+        sync: false
+      - key: CHROMA_DATABASE
+        value: AutoCare-Agent-Database
+      - key: LLM_MODEL
+        value: openai/gpt-oss-20b

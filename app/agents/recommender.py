@@ -23,7 +23,7 @@ def generate_auto_recommendation(vehicle_issue: str, user_mood: str, sector_name
     print(f"Searching for mechanics matches: '{vehicle_issue}' in {sector_name} Axis...")
     
     # 1. Fetch relevant mechanic candidates from ChromaDB vector catalog
-    raw_candidates = query_mechanics(query_text=vehicle_issue, n_results=3)
+    raw_candidates = query_mechanics(query_text=vehicle_issue, location_sector=sector_name, n_results=3)
     
     if not raw_candidates:
         return f"Apologies! I wasn't able to find any mechanics matching that description near the {sector_name} Axis right now."

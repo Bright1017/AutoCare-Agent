@@ -10,11 +10,13 @@ class Settings(BaseSettings):
     
     # --- SECURITY SETTINGS ---
     APP_API_KEY: Optional[str] = None
+    SUPABASE_URL: Optional[str] = None
+    SUPABASE_ANON_KEY: Optional[str] = None
     
     # --- LLM ENGINE SETTINGS ---
     OPENAI_API_KEY: Optional[str] = None
     GROQ_API_KEY: Optional[str] = None
-    LLM_MODEL: str = "llama-3.1-8b-instant"
+    LLM_MODEL: str = "openai/gpt-oss-20b"
     TEMPERATURE: float=0.2
     
     # --- DATABASE CONFIGURATIONS ---
@@ -31,7 +33,7 @@ class Settings(BaseSettings):
     @property
     def IS_GROQ(self) -> bool:
         model = self.LLM_MODEL.lower()
-        return "llama" in model or "groq" in model or "mixtral" in model
+        return "llama" in model or "groq" in model or "mixtral" in model or "openai/gpt-oss" in model
 
     @property
     def LLM_API_KEY(self) -> Optional[str]:
