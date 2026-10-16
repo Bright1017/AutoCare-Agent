@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field
+from typing import Literal
 from app.schemas.shop import MechanicShop
 
 class UserPersona(BaseModel):
@@ -20,10 +21,8 @@ class TaskASimulationPayload(BaseModel):
 
 
 class RecommendationRequest(BaseModel):
-    """
-    The data contract model that maps live frontend complaints to Task B landmarks.
-    """
-    user_name: str = Field(default="Driver", description="Name of the stranded vehicle owner", example="Chioma")
-    user_mood: str = Field(..., description="The driver's current emotional stress tier", example="anxious")
-    vehicle_issue: str = Field(..., description="The localized mechanical failure string", example="Brakes failing")
-    sector_name: str = Field(..., description="The structural Lagos neighborhood axis marker", example="Yaba")
+    """Validated request contract for the Lagos mechanic recommendation demo."""
+    user_name: str = Field(default="Driver", max_length=100)
+    user_mood: str = Field(default="concerned", max_length=40)
+    vehicle_issue: str = Field(..., min_length=5, max_length=500)
+    sector_name: Literal["Yaba", "Lekki Phase 1", "Ikeja"]
