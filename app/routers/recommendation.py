@@ -1,60 +1,84 @@
-import httpx
+import json
+import logging
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
+
 from fastapi import APIRouter, Depends, Header, HTTPException, status
+
 from app.config import settings
 from app.schemas.persona import RecommendationRequest
 from app.agents.recommender import generate_auto_recommendation
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/recommend", tags=["AutoCare Recommendation Engine"])
 
-async def require_supabase_user(authorization: str | None = Header(default=None)):
-    """Validate the signed-in user's Supabase access token without exposing a server secret."""
-    if not settings.SUPABASE_URL or not settings.SUPABASE_ANON_KEY:
-        raise HTTPException(status_code=503, detail="Supabase authentication is not configured.")
+# These are public Supabase client settings. Environment variables can override
+# them for staging or a future project; the publishable key is not a secret.
+SUPABASE_URL = settings.SUPABASE_URL or "https://riikxvssyacpotgxmrhs.supabase.co"
+SUPABASE_PUBLIC_KEY = settings.SUPABASE_ANON_KEY or "sb_publishable_RdzzwB82RXjOKexUtJuvbg_4dnWjWFg"
 
-    scheme, _, token = (authorization or "").partition(" ")
-    if scheme.lower() != "bearer" or not token.strip():
-        raise HTTPException(status_code=401, detail="Please log in to request recommendations.")
 
+def validate_supabase_user(authorization: str | None = Header(default=None)) -> dict:
+    """Verify the driver's Supabase access token before running a recommendation."""
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Sign in to get recommendations.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    request = Request(
+        f"{SUPABASE_URL.rstrip('/')}/auth/v1/user",
+        headers={
+            "apikey": SUPABASE_PUBLIC_KEY,
+            "Authorization": authorization,
+            "Accept": "application/json",
+        },
+    )
     try:
-        async with httpx.AsyncClient(timeout=8.0) as client:
-            response = await client.get(
-                f"{settings.SUPABASE_URL.rstrip('/')}/auth/v1/user",
-                headers={
-                    "apikey": settings.SUPABASE_ANON_KEY,
-                    "Authorization": f"Bearer {token.strip()}",
-                },
-            )
-    except httpx.RequestError:
-        raise HTTPException(status_code=503, detail="Could not verify your AutoCare AI session.")
+        with urlopen(request, timeout=8) as response:
+            user = json.loads(response.read().decode("utf-8"))
+    except HTTPError as error:
+        if error.code in (401, 403):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Your sign-in session has expired. Please sign in again.",
+                headers={"WWW-Authenticate": "Bearer"},
+            ) from error
+        logger.warning("Supabase token verification returned HTTP %s", error.code)
+        raise HTTPException(status_code=502, detail="Could not verify your sign-in session.") from error
+    except (URLError, TimeoutError) as error:
+        logger.warning("Supabase token verification is unavailable: %s", error)
+        raise HTTPException(status_code=503, detail="Sign-in verification is temporarily unavailable.") from error
+    except (ValueError, OSError) as error:
+        logger.warning("Could not read Supabase token verification response: %s", error)
+        raise HTTPException(status_code=502, detail="Could not verify your sign-in session.") from error
 
-    if response.status_code in (401, 403):
-        raise HTTPException(status_code=401, detail="Your session expired. Please log in again.")
-    if response.status_code != 200:
-        raise HTTPException(status_code=503, detail="Could not verify your AutoCare AI session.")
-    return response.json()
+    if not isinstance(user, dict) or not user.get("id"):
+        raise HTTPException(status_code=401, detail="Your sign-in session is invalid.")
+    return user
+
 
 @router.post("/sector", status_code=status.HTTP_200_OK)
 def get_localized_recommendations(
     payload: RecommendationRequest,
-    user: dict = Depends(require_supabase_user),
+    user: dict = Depends(validate_supabase_user),
 ):
+    """Return Lagos demo recommendations for a signed-in driver."""
     try:
-        plan = generate_auto_recommendation(
+        recommendation_plan = generate_auto_recommendation(
             vehicle_issue=payload.vehicle_issue,
             user_mood=payload.user_mood,
             sector_name=payload.sector_name,
             user_name=payload.user_name,
         )
         return {
-            "recommendation_plan": plan,
-            "demo_mode": True,
-            "notice": (
-                "Demo only: the current catalog is Yelp-derived and its Lagos locations "
-                "are synthetic. Providers and addresses are not verified."
-            ),
+            "recommendation_plan": recommendation_plan,
+            "notice": "Demo catalog only: provider identities and Lagos locations are not verified.",
         }
     except Exception:
+        logger.exception("Recommendation request failed for user %s", user.get("id"))
         raise HTTPException(
-            status_code=500,
-            detail="The recommendation service could not complete this request. Please try again later.",
+            status_code=503,
+            detail="The recommendation engine is temporarily unavailable. Please try again.",
         )
