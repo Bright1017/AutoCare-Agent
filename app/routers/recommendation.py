@@ -1,46 +1,60 @@
-from fastapi import APIRouter, Security, status, HTTPException
-from fastapi.security import APIKeyHeader
+import httpx
+from fastapi import APIRouter, Depends, Header, HTTPException, status
 from app.config import settings
 from app.schemas.persona import RecommendationRequest
 from app.agents.recommender import generate_auto_recommendation
 
-# router setup for all recommendation-related endpoints, including the full multi-agent pipeline that ingests user complaints and location to produce localized mechanic recommendations. This modular design allows us to cleanly separate the core logic of the recommendation engine from the API layer, while also enforcing strict security protocols using custom API keys.
 router = APIRouter(prefix="/api/recommend", tags=["AutoCare Recommendation Engine"])
 
-# Setup the exact custom API key header expected by your middleware layout
-api_key_header = APIKeyHeader(name="AutoCare", auto_error=False)
+async def require_supabase_user(authorization: str | None = Header(default=None)):
+    """Validate the signed-in user's Supabase access token without exposing a server secret."""
+    if not settings.SUPABASE_URL or not settings.SUPABASE_ANON_KEY:
+        raise HTTPException(status_code=503, detail="Supabase authentication is not configured.")
 
-def validate_key(api_key: str = Security(api_key_header)):
-    """
-    Enforces secure access using the CUSTOM PLATFORM TOKEN.
-    """
-    if not settings.APP_API_KEY:
-        raise HTTPException(status_code=500, detail="Application API security key is unconfigured.")
-    if api_key != settings.APP_API_KEY:
-        raise HTTPException(status_code=403, detail="Invalid or missing AutoCare API-Key header.")
-    return api_key
+    scheme, _, token = (authorization or "").partition(" ")
+    if scheme.lower() != "bearer" or not token.strip():
+        raise HTTPException(status_code=401, detail="Please log in to request recommendations.")
+
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            response = await client.get(
+                f"{settings.SUPABASE_URL.rstrip('/')}/auth/v1/user",
+                headers={
+                    "apikey": settings.SUPABASE_ANON_KEY,
+                    "Authorization": f"Bearer {token.strip()}",
+                },
+            )
+    except httpx.RequestError:
+        raise HTTPException(status_code=503, detail="Could not verify your AutoCare AI session.")
+
+    if response.status_code in (401, 403):
+        raise HTTPException(status_code=401, detail="Your session expired. Please log in again.")
+    if response.status_code != 200:
+        raise HTTPException(status_code=503, detail="Could not verify your AutoCare AI session.")
+    return response.json()
 
 @router.post("/sector", status_code=status.HTTP_200_OK)
-def get_localized_recommendations(payload: RecommendationRequest, token: str = Security(validate_key)):
-    """
-    this takes stranded Lagos driver typing, "My car is overheating." The RECOMMENDATION Agent finds nearby mechanics.
-    Then, the Digital Twin (USER-SIMULATOR) steps in, mimicking that exact driver(USER) to text-test each workshop first.
-    The Concierge reviews the simulated results, picks the perfect fit, and drops an instant rescue plan.
-    """
+def get_localized_recommendations(
+    payload: RecommendationRequest,
+    user: dict = Depends(require_supabase_user),
+):
     try:
-        # Executes the fully-wired two-stage pipeline function
-        action_plan_markdown = generate_auto_recommendation(
+        plan = generate_auto_recommendation(
             vehicle_issue=payload.vehicle_issue,
             user_mood=payload.user_mood,
             sector_name=payload.sector_name,
-            user_name=payload.user_name
+            user_name=payload.user_name,
         )
-        
-        # Return the final markdown text wrapped in a clean response object
-        return {"recommendation_plan": action_plan_markdown}
-        
-    except Exception as e:
+        return {
+            "recommendation_plan": plan,
+            "demo_mode": True,
+            "notice": (
+                "Demo only: the current catalog is Yelp-derived and its Lagos locations "
+                "are synthetic. Providers and addresses are not verified."
+            ),
+        }
+    except Exception:
         raise HTTPException(
             status_code=500,
-            detail=f"Error executing multi-turn concierge coordination layer: {str(e)}"
+            detail="The recommendation service could not complete this request. Please try again later.",
         )
