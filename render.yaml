@@ -30,4 +30,4 @@ services:
       - key: CHROMA_DATABASE
         value: AutoCare-Agent-Database
       - key: LLM_MODEL
-        value: llama-3.1-8b-instant
+        value: openai/gpt-oss-20b
